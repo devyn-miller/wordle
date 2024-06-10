@@ -7,14 +7,12 @@ with open('words.txt', 'r') as file:
     words = [line.strip() for line in file.readlines()]
 
 class WordleGame:
-    def __init__(self, root, word_length=5, max_guesses=6):
+    def __init__(self, root):
         self.root = root
-        self.root.title("Wordle Game")
-        self.word_length = word_length
-        self.max_guesses = max_guesses
-        self.current_attempt = 0
-        self.target_word = ""
-        self.create_widgets()
+        self.word_length = 5  # Default word length
+        self.max_guesses = 6  # Default number of guesses
+        self.create_widgets()  # First create all widgets
+        self.set_word_length()  # Then set the word length
 
     def update_settings(self, word_length=None, max_guesses=None):
         if word_length is not None:
@@ -34,20 +32,14 @@ class WordleGame:
         self.labels = []
 
         for i in range(self.max_guesses):
-            entry_row = []
-            label_row = []
-            for j in range(12):  # Maximum 12 letters
-                entry = tk.Entry(self.root, width=2, font=('Helvetica', 24), justify='center')
-                entry.grid(row=i+1, column=j, padx=5, pady=5)
+            row_entries = []
+            for j in range(self.word_length):
+                entry = tk.Entry(self.root, width=2, font=('Helvetica', 18), justify='center')
+                entry.grid(row=i, column=j, padx=5, pady=5)  # Add padding to avoid overlap
                 entry.bind("<KeyRelease>", lambda event, e=entry: self.on_type(event, e))
-                entry_row.append(entry)
+                row_entries.append(entry)
 
-                label = tk.Label(self.root, width=2, font=('Helvetica', 24), justify='center')
-                label.grid(row=i+1, column=j + 13, padx=5, pady=5)
-                label_row.append(label)
-
-            self.entries.append(entry_row)
-            self.labels.append(label_row)
+            self.entries.append(row_entries)
 
         self.submit_button = tk.Button(self.root, text="Submit", command=self.check_word)
         self.submit_button.grid(row=self.max_guesses + 1, column=0, columnspan=12, pady=10)
@@ -56,14 +48,9 @@ class WordleGame:
         self.hint_button.grid(row=self.max_guesses + 1, column=13, columnspan=12, pady=10)
 
     def set_word_length(self):
-        self.word_length = self.length_var.get()
-        self.target_word = random.choice([word for word in words if len(word) == self.word_length])
-        self.current_attempt = 0
-        for i in range(self.max_guesses):
-            for j in range(12):
-                self.entries[i][j].delete(0, tk.END)
-                self.entries[i][j].config(state=tk.NORMAL if j < self.word_length else tk.DISABLED)
-                self.labels[i][j].config(text="", bg=self.root.cget("bg"))
+        for i in range(len(self.entries)):
+            for j in range(len(self.entries[i])):
+                self.entries[i][j].delete(0, tk.END)  # Clear the entry widget
 
     def check_word(self):
         if self.current_attempt >= self.max_guesses:
@@ -107,27 +94,33 @@ class WordleGame:
         key_status = {key: 'gray' for key in keyboard_layout}
 
         for guess in guesses:
-            for idx, char in enumerate(guess):
-                if char in solution:
-                    if solution[idx] == char:
-                        key_status[char] = 'green'
-                    elif key_status[char] != 'green':
-                        key_status[char] = 'yellow'
-                else:
-                    if key_status[char] == 'gray':
-                        key_status[char] = 'gray'
+            for idx, char in enumerate(guess.upper()):
+                if char in keyboard_layout:  # Ensure the character is a valid key
+                    if char in solution:
+                        if solution[idx] == char:
+                            key_status[char] = 'green'
+                        elif key_status[char] != 'green':
+                            key_status[char] = 'yellow'
+                    else:
+                        if key_status.get(char) != 'yellow':  # Use .get() to avoid KeyError
+                            key_status[char] = 'gray'
+
+        # Create a frame for the keyboard
+        keyboard_frame = tk.Frame(self.root)
+        keyboard_frame.grid(row=self.max_guesses + 2, column=0, columnspan=12, pady=20)
 
         # Display the keyboard
-        for key in keyboard_layout:
-            print(f"{key}: {key_status[key]}")
+        for i, key in enumerate(keyboard_layout):
+            key_button = tk.Button(keyboard_frame, text=key, bg=key_status[key], width=2, font=('Helvetica', 18))
+            key_button.grid(row=i // 10, column=i % 10)
 
     def on_type(self, event, entry):
-        current_text = entry.get()
-        if len(current_text) > 1:
-            entry.delete(1, tk.END)
-        next_index = self.entries[self.current_attempt].index(entry) + 1
-        if len(current_text) == 1 and next_index < len(self.entries[self.current_attempt]):
-            self.entries[self.current_attempt][next_index].focus_set()
+        try:
+            next_index = self.entries[self.current_attempt].index(entry) + 1
+            if next_index < self.word_length:
+                self.entries[self.current_attempt][next_index].focus()
+        except ValueError:
+            pass  # Handle the case where the entry is not found in the list
 
 if __name__ == "__main__":
     root = tk.Tk()
